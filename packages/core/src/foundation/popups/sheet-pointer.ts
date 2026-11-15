@@ -19,7 +19,7 @@ import { nearestIndex } from "../motion/projection"
 import { settleTime, solveSpring, springLinearEasing } from "../motion/spring"
 import { createVelocityTracker } from "../motion/velocity"
 import { on } from "../kernel/events"
-import { swallowNextClick } from "../drag-and-drop/pointer"
+import { isDragPress, swallowNextClick } from "../drag-and-drop/pointer"
 import {
   axisPoint,
   scrollContext,
@@ -77,6 +77,9 @@ function createPointerDriver(options: SheetDriverOptions) {
   let pointerId: number | null = null
   let dragging = false
   let mouseDragged = false
+  // Kept to see whether a drag inside took the press, like a slider's: it
+  // isn't the sheet's. A framework's own listener runs after the sheet's.
+  let press: PointerEvent | null = null
   let targetId: string | null = null
   const point = { x: 0, y: 0 }
   const tracker = createVelocityTracker({
@@ -333,7 +336,9 @@ function createPointerDriver(options: SheetDriverOptions) {
   }
 
   function onTouchStart(event: TouchEvent) {
-    if (touch || event.touches.length > 1 || closing) {
+    const taken = press !== null && isDragPress(press)
+    press = null
+    if (touch || event.touches.length > 1 || closing || taken) {
       return
     }
     if (!options.owns(event.target) || isIgnored(event.target)) {
@@ -455,6 +460,7 @@ function createPointerDriver(options: SheetDriverOptions) {
   }
 
   function onPointerDown(event: PointerEvent) {
+    press = event
     if (
       event.pointerType === "touch" ||
       event.button !== 0 ||
@@ -498,6 +504,9 @@ function createPointerDriver(options: SheetDriverOptions) {
     if (event.pointerId !== pointerId) {
       return
     }
+    if (press && isDragPress(press)) {
+      return release(event, 0)
+    }
     // Engines without coalescing, and synthetic events, give an empty list.
     const coalesced = event.getCoalescedEvents?.()
     for (const sample of coalesced?.length ? coalesced : [event]) {
@@ -531,15 +540,20 @@ function createPointerDriver(options: SheetDriverOptions) {
   }
 
   function onPointerUp(event: PointerEvent) {
-    if (event.pointerId !== pointerId) {
-      return
+    if (event.pointerId === pointerId) {
+      release(
+        event,
+        event.type === "pointercancel" ? 0 : tracker.velocity(event.timeStamp)
+      )
     }
+  }
+
+  function release(event: PointerEvent, velocity: number) {
     pointerId = null
+    press = null
     offPointer.forEach((off) => off())
     offPointer = []
     sheet.style.removeProperty("user-select")
-    const velocity =
-      event.type === "pointercancel" ? 0 : tracker.velocity(event.timeStamp)
     dispatch({ type: "up", time: event.timeStamp, velocity }, event)
     if (mouseDragged) {
       swallowNextClick(doc)

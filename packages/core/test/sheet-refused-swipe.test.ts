@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, test } from "vitest"
+import { bindDrag } from "../src/foundation/drag-and-drop/pointer"
 import { sheetPhysics } from "../src/foundation/motion/physics"
 import type {
   SheetDriver,
@@ -38,6 +39,7 @@ function setup(create: (options: SheetDriverOptions) => SheetDriver) {
   host.append(sheet)
   document.body.append(host)
   const rests: (string | null)[] = []
+  const drags: boolean[] = []
   const none = () => {}
   driver = create({
     sheet,
@@ -59,19 +61,20 @@ function setup(create: (options: SheetDriverOptions) => SheetDriver) {
     onRest: (id) => rests.push(id),
     onDismiss: () => driver!.snapTo("full", "imperative"),
     onDismissAttempt: none,
-    onDragChange: none,
+    onDragChange: (dragging) => drags.push(dragging),
     isInteractive: () => false,
     onFrame: none,
     onMotion: none,
     onMotionStart: none,
   })
   driver.open("full", false)
-  return { sheet, rests }
+  return { sheet, rests, drags }
 }
 
 const pointer = (type: string, clientY: number) =>
   new PointerEvent(type, {
     bubbles: true,
+    cancelable: true,
     button: 0,
     pointerId: 1,
     pointerType: "mouse",
@@ -98,4 +101,25 @@ describe("a swipe the popup refuses snaps back", () => {
     expect(rests.at(-1)).toBe("full")
     expect(driver!.target()).toBe("full")
   })
+})
+
+test("a press that a drag inside follows, like a slider's, doesn't drag the sheet", () => {
+  const { sheet, drags } = setup(createPointerDriver)
+  const track = sheet.appendChild(document.createElement("div"))
+  // A framework's delegated handler runs after the sheet's own listener.
+  const handle = (event: PointerEvent) =>
+    bindDrag(track, event, { onMove() {}, onEnd() {} })
+  document.addEventListener("pointerdown", handle)
+  const drag = (target: Element) => {
+    target.dispatchEvent(pointer("pointerdown", 100))
+    for (const y of [150, 300]) {
+      document.dispatchEvent(pointer("pointermove", y))
+    }
+    document.dispatchEvent(pointer("pointerup", 300))
+  }
+  drag(track)
+  expect(drags).toEqual([])
+  document.removeEventListener("pointerdown", handle)
+  drag(track)
+  expect(drags).toContain(true)
 })

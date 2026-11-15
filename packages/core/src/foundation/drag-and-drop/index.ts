@@ -8,6 +8,7 @@ export {
   type DragSession,
   dragThreshold,
   isDrag,
+  isDragPress,
   type PointerSample,
   repeatWhileHeld,
   swallowNextClick,
