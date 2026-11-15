@@ -206,6 +206,35 @@ describe("number input", () => {
     ])
   })
 
+  test("a controlled value commits what Enter clamped it to, before its owner passes it back", () => {
+    const onValueCommit = vi.fn()
+    const options = {
+      id: "n",
+      value: 4,
+      min: 1,
+      max: 12,
+      locale: "en-US",
+      onValueCommit,
+    }
+    const instance = numberInput(options)
+    instance.api.internal.type("2")
+    instance.setOptions({ ...options, value: 2 })
+    instance.api.internal.type("20")
+    instance.api.internal.commitText()
+    instance.setOptions({ ...options, value: 12 })
+    instance.api.internal.type("0")
+    instance.api.internal.commitText()
+    expect(
+      onValueCommit.mock.calls.map(([value, details]) => [
+        value,
+        details.reason,
+      ])
+    ).toEqual([
+      [12, "input-commit"],
+      [1, "input-commit"],
+    ])
+  })
+
   test("a controller step leaves nothing for the next blur to commit", () => {
     const onValueCommit = vi.fn()
     const instance = numberInput({ id: "n", defaultValue: 1, onValueCommit })
