@@ -685,6 +685,36 @@ describe("agent", () => {
     expect(plan.get().value).toBeNull()
   })
 
+  test("a combobox that renders its own items and shows none refuses a value, unless it allows custom values", async () => {
+    const agent = createAgent()
+    const region = mountCombobox({ id: "region", defaultOpen: true }, "Region")
+    const refused = await agent.act({
+      steps: [{ ref: "Region", action: "setValue", args: ["Tokyo"] }],
+    })
+    expect(refused.error?.message).toMatch(
+      /^No item "Tokyo" in Region \(c\d+\)\. Its items: none\.$/
+    )
+    expect(region.get().value).toBeNull()
+    const stops = mountCombobox(
+      { id: "stops", defaultOpen: true, multiple: true },
+      "Stops"
+    )
+    const list = await agent.act({
+      steps: [{ ref: "Stops", action: "setValue", args: [["tok"]] }],
+    })
+    expect(list.error?.message).toMatch(/^No item "tok" in Stops /)
+    expect(stops.get().value).toEqual([])
+    const city = mountCombobox(
+      { id: "city", defaultOpen: true, allowCustomValue: true },
+      "City"
+    )
+    const taken = await agent.act({
+      steps: [{ ref: "City", action: "setValue", args: ["Tokyo"] }],
+    })
+    expect(taken.ok, taken.error?.message).toBe(true)
+    expect(city.get().value).toBe("Tokyo")
+  })
+
   test("a combobox takes the value it holds, even one its list no longer has", async () => {
     const agent = createAgent()
     const onValueChange = vi.fn()

@@ -1339,6 +1339,7 @@ function createAgent(
       // A combobox with `allowCustomValue` takes text that isn't an item.
       const closed =
         entry.agent?.closed && !internalOf(instance)?.allowCustomValue?.()
+      const opens = "setOpen" in (instance.api as object)
       // A number from text, like "90 days" on a slider, since a slider or number field given text would hold no number.
       const state = instance.get() as {
         value?: unknown
@@ -1393,13 +1394,13 @@ function createAgent(
             )
           }
           // A closed list refuses text that names none of its items, but a select's
-          // search text isn't an item. Data with no items is a list with none. The
-          // first 20 keep the error short.
+          // search text isn't an item. Data with no items, or a popup that opened
+          // and showed none, is a list with none. The first 20 keep the error short.
           if (found.length === 1) {
             args = [found[0].value, ...args.slice(1)]
             named = true
           } else if (
-            (items.length || data) &&
+            (items.length || data || opens) &&
             closed &&
             action !== "setQuery" &&
             !holds(args[0])
@@ -1458,7 +1459,10 @@ function createAgent(
           (value) =>
             !known.has(key(value)) && !holds(value) && !elementOf?.(key(value))
         )
-        if ((items.length || elementOf || data) && unknown !== undefined) {
+        if (
+          (items.length || elementOf || data || opens) &&
+          unknown !== undefined
+        ) {
           throw new Error(
             `No item ${JSON.stringify(unknown)} in ${entry.label ?? entry.component} (${entry.ref}).`
           )
