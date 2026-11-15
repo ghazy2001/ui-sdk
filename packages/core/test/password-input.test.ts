@@ -1,6 +1,13 @@
+// @vitest-environment jsdom
 import { describe, expect, test, vi } from "vitest"
 import { passwordInput } from "../src/components/password-input/password-input"
-import { attrs, partState, press } from "../src/foundation/kernel/part"
+import {
+  attrs,
+  bind,
+  handlers,
+  partState,
+  press,
+} from "../src/foundation/kernel/part"
 
 describe("password input", () => {
   test("starts hidden, as a password field that password managers fill", () => {
@@ -104,6 +111,23 @@ describe("password input", () => {
       "",
       expect.objectContaining({ reason: "imperative" })
     )
+  })
+
+  test("unmounting while focused does not throw in focusout", () => {
+    const instance = passwordInput({ id: "p" })
+    const control = instance.part("control", {})
+    const el = document.createElement("input")
+    const unbind = bind(control, el)
+    handlers(control).keydown?.({
+      getModifierState: (k: string) => k === "CapsLock",
+    } as unknown as KeyboardEvent)
+    expect(partState(instance.part("root", {})).capsLock).toBe(true)
+    unbind()
+    const on = handlers(control)
+    expect(() => {
+      on.focusout?.(new FocusEvent("focusout"))
+    }).not.toThrow()
+    expect(partState(instance.part("root", {})).capsLock).toBe(false)
   })
 })
 

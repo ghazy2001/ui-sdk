@@ -364,9 +364,9 @@ const passwordInputPrimitive = /* @__PURE__ */ definePrimitive({
         capsLock(event: KeyboardEvent | MouseEvent) {
           store.set({ capsLock: !!event.getModifierState?.("CapsLock") })
         },
-        blurred(el: HTMLInputElement) {
+        blurred(el?: HTMLInputElement) {
           store.set({ capsLock: false })
-          if (el.selectionStart !== null && el.selectionEnd !== null) {
+          if (el && el.selectionStart !== null && el.selectionEnd !== null) {
             selection = [
               el.selectionStart,
               el.selectionEnd,
@@ -460,7 +460,7 @@ const passwordInputPrimitive = /* @__PURE__ */ definePrimitive({
         keyup: (event, { api }) => api.internal.capsLock(event),
         mousedown: (event, { api }) => api.internal.capsLock(event),
         focusout: (_, { api, el }) =>
-          api.internal.blurred(el as HTMLInputElement),
+          api.internal.blurred(el as HTMLInputElement | undefined),
       },
       bind: (el, { api }) => api.internal.bindControl(el as HTMLInputElement),
     }),
