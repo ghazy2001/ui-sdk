@@ -30,11 +30,13 @@ import { on } from "../kernel/events"
 import {
   afterFirstFrame,
   openHold,
+  sampleTranslate,
   setStyles,
   toolbarBleed,
   type SheetDriver,
   type SheetDriverOptions,
 } from "./sheet-driver"
+import { supportsLinear } from "./sheet-effects"
 
 // No scroll for this long, with no finger down, counts as rest where
 // `scrollend` isn't supported.
@@ -286,13 +288,25 @@ function createScrollSnapDriver(options: SheetDriverOptions) {
     host.scrollTop = scrolled - extentAtTop
     const extentAt = (elapsed: number) =>
       target + solver.position(Math.max(0, elapsed))
-    const easing =
-      Math.abs(target - from) < 0.5
-        ? "linear"
-        : springLinearEasing(solver, from, target, duration)
+    const still = Math.abs(target - from) < 0.5
+    const sampled = !still && !supportsLinear()
     const animation = sheet.animate(
-      { translate: [`0 ${scrolled - from}px`, `0 ${scrolled - target}px`] },
-      { duration, easing, fill: "both" }
+      {
+        translate: sampled
+          ? sampleTranslate(
+              { duration, extentAt },
+              (extent) => `0 ${scrolled - extent}px`
+            )
+          : [`0 ${scrolled - from}px`, `0 ${scrolled - target}px`],
+      },
+      {
+        duration,
+        easing:
+          still || sampled
+            ? "linear"
+            : springLinearEasing(solver, from, target, duration),
+        fill: "both",
+      }
     )
     animation.startTime = startTime
     flip = { animation, to: target, extentAt, startTime }

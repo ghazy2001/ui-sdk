@@ -96,6 +96,20 @@ function closedExtentFor(side: PhysicalSide) {
   return side === "bottom" ? -toolbarBleed : -32
 }
 
+// A settle as one `translate` keyframe per frame, for a browser without
+// `linear()` and for a distance too short for an easing to carry.
+function sampleTranslate(
+  motion: { duration: number; extentAt: (elapsed: number) => number },
+  translate: (extent: number) => string
+) {
+  const frames: string[] = []
+  for (let elapsed = 0; elapsed < motion.duration; elapsed += 1000 / 60) {
+    frames.push(translate(motion.extentAt(elapsed)))
+  }
+  frames.push(translate(motion.extentAt(motion.duration)))
+  return frames
+}
+
 // A sheet settles in this long under reduced motion, without overshoot, and
 // opens and closes with a fade this long.
 const reducedSettle = 200
@@ -116,6 +130,7 @@ export {
   openHold,
   reducedFade,
   reducedSettle,
+  sampleTranslate,
   setStyles,
   type SheetDriver,
   type SheetDriverName,

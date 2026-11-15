@@ -80,6 +80,7 @@ function prepareVariables() {
   }
 }
 
+// Safari before 17.2 has no `linear()` easing, and animating with one throws.
 const supportsLinear = () =>
   typeof CSS !== "undefined" &&
   CSS.supports("animation-timing-function", "linear(0, 1)")
@@ -406,4 +407,5 @@ export {
   type SheetKeyframes,
   type SheetMotion,
   type SheetOutlet,
+  supportsLinear,
 }

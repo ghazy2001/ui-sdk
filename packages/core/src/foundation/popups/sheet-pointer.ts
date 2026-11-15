@@ -31,27 +31,17 @@ import {
   openHold,
   reducedFade,
   reducedSettle,
+  sampleTranslate,
   type SheetDriver,
   type SheetDriverOptions,
 } from "./sheet-driver"
+import { supportsLinear } from "./sheet-effects"
 
 // UIScrollView's normal deceleration, for content flung past the sheet's largest snap point.
 const contentDecelerationRate = 0.998
 
 const ignoredTargets =
   'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [data-drawer-no-drag]'
-
-function sampleTranslate(
-  motion: { duration: number; extentAt: (elapsed: number) => number },
-  translate: (extent: number) => string
-) {
-  const frames: string[] = []
-  for (let elapsed = 0; elapsed < motion.duration; elapsed += 1000 / 60) {
-    frames.push(translate(motion.extentAt(elapsed)))
-  }
-  frames.push(translate(motion.extentAt(motion.duration)))
-  return frames
-}
 
 function createPointerDriver(options: SheetDriverOptions) {
   const { sheet } = options
@@ -190,7 +180,7 @@ function createPointerDriver(options: SheetDriverOptions) {
           { opacity: from === closed ? [0, 1] : [1, 0] },
           { duration: motion.duration, fill: "both" }
         )
-      : Math.abs(to - from) < 1
+      : Math.abs(to - from) < 1 || !supportsLinear()
         ? sheet.animate(
             {
               translate: sampleTranslate(motion, (extent) =>
