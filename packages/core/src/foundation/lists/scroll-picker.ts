@@ -123,6 +123,7 @@ function bindScrollPicker(
   let rtl = false
   let items: HTMLElement[] = []
   let centers: number[] = []
+  let sized = false
   let painted: string[] = []
   let position = 0
   // The option selected last, by the picker or the list.
@@ -198,18 +199,20 @@ function bindScrollPicker(
     items = [...list.querySelectorAll<HTMLElement>('[role="option"]')]
     painted = []
     const box = list.getBoundingClientRect()
-    const start = vertical
-      ? box.top + list.clientTop
-      : rtl
-        ? box.left + list.clientLeft + list.clientWidth
-        : box.left + list.clientLeft
+    const size = vertical ? box.height : box.width
+    sized = size > 0
+    // A transform around the list, like a popup's scale as it opens, scales
+    // these boxes and not the scroll position, so the centers are scaled back.
+    // The layout size is rounded, so a size within its rounding isn't scaled.
+    const layout = vertical ? list.offsetHeight : list.offsetWidth
+    const scale = sized && Math.abs(layout - size) > 0.5 ? layout / size : 1
     const at = scroll()
     centers = items.map((item) => {
       const rect = item.getBoundingClientRect()
-      const center = vertical
-        ? rect.top + rect.height / 2
-        : rect.left + rect.width / 2
-      return (rtl ? start - center : center - start) + at
+      const offset = vertical
+        ? (rect.top + rect.height / 2 - box.top) * scale - list.clientTop
+        : (rect.left + rect.width / 2 - box.left) * scale - list.clientLeft
+      return (rtl ? list.clientWidth - offset : offset) + at
     })
     for (const item of items) {
       if (!observed.has(item)) {
@@ -312,6 +315,11 @@ function bindScrollPicker(
   }
 
   function onScroll(event: Event) {
+    // Bound while hidden, it has measured nothing, and the list can scroll as
+    // it shows, before its new size is observed.
+    if (!sized) {
+      return onResize()
+    }
     if (target !== null) {
       if (Math.abs(scroll() - target) < 1) {
         arrive()

@@ -94,6 +94,61 @@ describe("bindScrollPicker", () => {
     ).toBe(false)
   })
 
+  // Lays the list out as a browser would: 180px tall with 72px of padding,
+  // 36px options, and every box scaled by the transform around it.
+  function layOut(list: HTMLElement, scale = 1, height = 180) {
+    const options = [...list.querySelectorAll<HTMLElement>('[role="option"]')]
+    const rect = (top: number, height: number) =>
+      ({
+        top: top * scale,
+        height: height * scale,
+        left: 0,
+        width: 0,
+      }) as DOMRect
+    Object.defineProperties(list, {
+      offsetHeight: { value: 180 },
+      clientHeight: { value: 180 },
+      scrollHeight: { value: 144 + options.length * 36 },
+    })
+    list.getBoundingClientRect = () => rect(0, height)
+    list.scrollTo = (({ top }: ScrollToOptions) => {
+      list.scrollTop = top!
+    }) as typeof list.scrollTo
+    options.forEach((option, index) => {
+      option.getBoundingClientRect = () =>
+        rect(72 + index * 36 - list.scrollTop, 36)
+    })
+  }
+
+  test("centers the selected option under a transform that scales the list", () => {
+    const list = render()
+    layOut(list, 0.5)
+    const unbind = bindScrollPicker(list)
+    expect(list.scrollTop).toBe(36)
+    unbind()
+  })
+
+  test("a list with a fractional height isn't taken for a scaled one", () => {
+    const list = render()
+    layOut(list, 1, 180.4)
+    const unbind = bindScrollPicker(list)
+    expect(list.scrollTop).toBe(36)
+    unbind()
+  })
+
+  test("bound while hidden, a scroll as the list shows centers the selected option and selects nothing", () => {
+    const list = render()
+    const selected: number[] = []
+    const unbind = bindScrollPicker(list, {
+      onSelect: (index) => selected.push(index),
+    })
+    layOut(list)
+    list.dispatchEvent(new Event("scroll"))
+    expect(list.scrollTop).toBe(36)
+    expect(selected).toEqual([])
+    unbind()
+  })
+
   test("a Page Down reports the option it moves to", () => {
     const list = render()
     const selected: number[] = []
