@@ -602,6 +602,13 @@ function createPopupLayer<
     mountedAs(open) === open ? ({ mounted: open } as Partial<State>) : undefined
   )
 
+  function openedFrom(focused: HTMLElement | undefined) {
+    before = focused
+    const openerLayer = before && findLayer(before)
+    const openerTarget = openerLayer ? undefined : lastClosed()
+    upstream = openerLayer?.returnTarget ?? (() => openerTarget)
+  }
+
   let wasOpen = store.get().open
   store.subscribe(() => {
     const { open } = store.get()
@@ -627,12 +634,10 @@ function createPopupLayer<
       enterPending = true
       returnMode = true
       const active = isBrowser ? activeElement() : null
-      before =
+      openedFrom(
         active && active !== active.ownerDocument.body ? active : undefined
+      )
       openedWithoutTrigger = opener === "imperative"
-      const openerLayer = before && findLayer(before)
-      const openerTarget = openerLayer ? undefined : lastClosed()
-      upstream = openerLayer?.returnTarget ?? (() => openerTarget)
       const exiting = !!shown
       store.set({ mounted: true } as Partial<State>)
       // Reopened while animating out, it attaches again: the close already let
@@ -738,24 +743,14 @@ function createPopupLayer<
   function returnChain(
     el: HTMLElement | undefined,
     take?: (target: HTMLElement) => boolean,
-    from = upstream
+    from = upstream,
+    near = true
   ) {
     const inherited = () => from(take)
+    const nearby = near ? [() => neighbour(el)] : []
     return openedWithoutTrigger
-      ? [
-          () => before,
-          inherited,
-          returnTrigger,
-          () => neighbour(el),
-          options.trigger,
-        ]
-      : [
-          returnTrigger,
-          () => before,
-          inherited,
-          () => neighbour(el),
-          options.trigger,
-        ]
+      ? [() => before, inherited, returnTrigger, ...nearby, options.trigger]
+      : [returnTrigger, () => before, inherited, ...nearby, options.trigger]
   }
 
   // A popup opened from this one returns here after this one closed, trying
@@ -835,7 +830,7 @@ function createPopupLayer<
     }
   }
 
-  function returnFocus(el: HTMLElement, from: typeof upstream) {
+  function returnFocus(el: HTMLElement, from: typeof upstream, near = true) {
     const setting = options.finalFocus?.() ?? "trigger"
     if (setting === "none") {
       return
@@ -849,7 +844,7 @@ function createPopupLayer<
       restoreFocus(target)
       return activeElement() === target
     }
-    const chain = returnChain(el, take, from)
+    const chain = returnChain(el, take, from, near)
     if (setting !== "trigger") {
       chain.unshift(() => resolveTarget(setting, el.ownerDocument))
     }
@@ -888,17 +883,17 @@ function createPopupLayer<
     const cleanups: (() => void)[] = []
     const trigger = options.trigger()
     const host = config.host?.() ?? el
-    // Mounted open, like a dialog an overlay manager opens, focus returns to
-    // what had it as the popup mounted, since no open recorded it.
+    // Mounted open, like a dialog a menu item opens, focus returns to what
+    // had it as the popup mounted, since no open recorded it.
     if (opener === "initial" && !before) {
       const active = activeElement()
-      if (
+      openedFrom(
         active &&
-        active !== active.ownerDocument.body &&
-        !composedContains(el, active)
-      ) {
-        before = active
-      }
+          active !== active.ownerDocument.body &&
+          !composedContains(el, active)
+          ? active
+          : undefined
+      )
     }
     el.removeAttribute("hidden")
     host.removeAttribute("hidden")
@@ -1386,7 +1381,26 @@ function createPopupLayer<
         }
         bound = undefined
         if (shown?.el === el) {
+          // Some frameworks remove the element first, and its focus is on the body by now.
+          const active = activeElement()
+          const held =
+            store.get().open &&
+            behavior.movesFocus &&
+            (!active ||
+              active === el.ownerDocument.body ||
+              composedContains(el, active))
+          const from = upstream
           hide()
+          // Removed from the page while open, like a dialog rendered only
+          // while it's open, focus goes back to what opened it. New content
+          // in its place keeps it, and a new page isn't a neighbour.
+          if (held) {
+            queueMicrotask(() => {
+              if (!bound && !el.isConnected && focusIsLost()) {
+                returnFocus(el, from, false)
+              }
+            })
+          }
         }
       }
     },
