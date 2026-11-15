@@ -193,11 +193,11 @@ const DIALOG_DESCRIPTIONS: Record<string, Description> = {
 // A file for the file input's samples.
 const docsFile = new File([""], "photo.png")
 
-// Styling hooks per component, read from the primitive itself so names and
-// values cannot drift. `instances` covers the states worth sampling,
-// `interactive` the files whose setAttribute("data-…") calls add attributes
-// while people interact, and `descriptions` what each attribute means. Values
-// listed there replace sampled ones, for attributes that depend on layout.
+const arrowAttributes = ["data-side", "data-align", "data-arrow-clamped"]
+
+// Styling hooks per component, read from the primitive so names and values
+// can't drift. `interactive` names the files that add attributes while people
+// interact. A description's values replace sampled ones that depend on layout.
 const components: Record<
   string,
   {
@@ -269,9 +269,15 @@ const components: Record<
     interactive: [
       { file: "motion/presence.ts", slot: "content" },
       { file: "platform/position.ts", slot: "content" },
-      { file: "menu/menu.ts", slot: "item" },
+      { file: "menu/menu-api.ts", slot: "item" },
+      { file: "menu/menu-api.ts", slot: "checkbox-item" },
+      { file: "menu/menu-api.ts", slot: "radio-item" },
     ],
-    extra: { item: ["data-has-icon"], content: ["data-has-icons"] },
+    extra: {
+      item: ["data-has-icon"],
+      content: ["data-has-icons"],
+      "context-trigger": ["data-open"],
+    },
     descriptions: {
       "data-mirror": {
         text: "Present on an icon that flips in right-to-left text, with `mirror`.",
@@ -313,6 +319,9 @@ const components: Record<
       "data-disabled": { text: "Present when the item can't be chosen." },
       "trigger:data-disabled": {
         text: "Present when the trigger is disabled.",
+      },
+      "context-trigger:data-disabled": {
+        text: "Present when the area is disabled.",
       },
       "data-highlighted": {
         text: "Present on the item with keyboard focus or under the pointer.",
@@ -394,6 +403,7 @@ const components: Record<
       "select-all": ["data-highlighted"],
       empty: ["data-empty"],
       content: ["data-has-icons"],
+      arrow: arrowAttributes,
     },
     descriptions: {
       "data-presentation": {
@@ -460,6 +470,9 @@ const components: Record<
       "data-align": {
         text: "How the list lines up with the trigger.",
         values: ["start", "center", "end"],
+      },
+      "data-arrow-clamped": {
+        text: "Present on the arrow when it stops short of the middle of the trigger, held back by `arrowPadding`.",
       },
       "data-modality": {
         text: "Whether the keyboard or a pointer is in use, for focus styles.",
@@ -535,6 +548,7 @@ const components: Record<
       create: ["data-highlighted", "data-pending"],
       empty: ["data-empty"],
       content: ["data-has-icons"],
+      arrow: arrowAttributes,
     },
     descriptions: {
       "data-presentation": {
@@ -610,6 +624,9 @@ const components: Record<
       "data-align": {
         text: "How the list lines up with the input.",
         values: ["start", "center", "end"],
+      },
+      "data-arrow-clamped": {
+        text: "Present on the arrow when it stops short of the middle of the input, held back by `arrowPadding`.",
       },
       "data-modality": {
         text: "Whether the keyboard or a pointer moves the highlight. Style a focus ring for the keyboard only.",
@@ -724,6 +741,7 @@ const components: Record<
       "item-text": ["data-matched"],
       empty: ["data-empty"],
       content: ["data-has-icons"],
+      arrow: arrowAttributes,
     },
     descriptions: {
       "data-presentation": {
@@ -771,6 +789,9 @@ const components: Record<
       "data-align": {
         text: "How the suggestions line up with the field.",
         values: ["start", "center", "end"],
+      },
+      "data-arrow-clamped": {
+        text: "Present on the arrow when it stops short of the middle of the field, held back by `arrowPadding`.",
       },
       "data-modality": {
         text: "Whether the keyboard or a pointer moves the highlight. Style a focus ring for the keyboard only.",
@@ -2683,6 +2704,7 @@ const components: Record<
       { file: "motion/presence.ts", slot: "content" },
       { file: "platform/position.ts", slot: "content" },
     ],
+    extra: { arrow: arrowAttributes },
     descriptions: {
       "data-presentation": {
         text: "How the popover presents this time it's open.",
@@ -2729,6 +2751,7 @@ const components: Record<
       { file: "motion/presence.ts", slot: "content" },
       { file: "platform/position.ts", slot: "content" },
     ],
+    extra: { arrow: arrowAttributes },
     descriptions: {
       "data-open": { text: "Present while the tooltip is open." },
       "data-closed": {
@@ -2765,6 +2788,7 @@ const components: Record<
       { file: "motion/presence.ts", slot: "content" },
       { file: "platform/position.ts", slot: "content" },
     ],
+    extra: { arrow: arrowAttributes },
     descriptions: {
       "data-open": {
         text: "Present while the card is open. On a trigger, while it's open from that trigger.",
@@ -3025,7 +3049,9 @@ async function collect(component: string) {
   }
   for (const { file, slot } of interactive) {
     const source = await readFile(coreSource(file), "utf8")
-    for (const match of source.matchAll(/setAttribute\("(data-[\w-]+)"/g)) {
+    for (const match of source.matchAll(
+      /(?:setAttribute|popup\.attribute)\("(data-[\w-]+)"/g
+    )) {
       add(slot, match[1], "")
     }
   }
