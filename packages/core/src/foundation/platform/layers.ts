@@ -353,24 +353,29 @@ function listen(doc: Document, win: Window) {
     { capture: true }
   )
 
-  const offKey = on(doc, "keydown", (event) => {
-    if (event.key !== "Escape" || event.defaultPrevented) {
-      return
-    }
-    // Escape ends an input method's composition first, like a Japanese candidate list.
-    if (isComposing(event)) {
-      return
-    }
-    // The topmost layer of this document: one open in another, like an
-    // iframe's, didn't hear the key.
-    const top = active()
-      .filter((layer) => documentOf(layer) === doc)
-      .at(-1)
-    if (top?.onEscape) {
-      realm.escapeAt = performance.now()
-    }
-    top?.onEscape?.(event)
-  })
+  const offKey = on(
+    doc,
+    "keydown",
+    (event) => {
+      if (event.key !== "Escape" || event.defaultPrevented) {
+        return
+      }
+      // Escape ends an input method's composition first, like a Japanese candidate list.
+      if (isComposing(event)) {
+        return
+      }
+      // The topmost layer of this document: one open in another, like an
+      // iframe's, didn't hear the key.
+      const top = active()
+        .filter((layer) => documentOf(layer) === doc)
+        .at(-1)
+      if (top?.onEscape) {
+        realm.escapeAt = performance.now()
+      }
+      top?.onEscape?.(event)
+    },
+    { capture: true }
+  )
 
   // A click into an iframe or another window never reaches the page. Each
   // layer decides what that means for it.
