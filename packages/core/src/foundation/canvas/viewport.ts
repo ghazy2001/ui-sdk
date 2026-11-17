@@ -6,6 +6,7 @@
 // empty space pans, two fingers pinch, and the keys zoom too.
 import type { PrimitiveContext } from "../kernel/primitive-types"
 import { announce } from "../platform/announce"
+import { isRTL } from "../platform/env"
 
 /**
  * Where the canvas sits on screen: its origin's offset from the surface's top left, in CSS pixels, and its scale.
@@ -455,8 +456,7 @@ function createViewport<State extends object>(
         if (!spacer.isConnected) {
           el.append(spacer)
         }
-        const rtl =
-          el.ownerDocument.defaultView?.getComputedStyle(el).direction === "rtl"
+        const rtl = isRTL(el)
         el.scrollLeft = rtl ? -rest : rest
         el.scrollTop = rest
         const at = { x: el.scrollLeft, y: el.scrollTop }

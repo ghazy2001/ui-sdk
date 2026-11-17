@@ -20,7 +20,7 @@ import {
 import { on } from "../kernel/events"
 import type { Layer } from "../platform/layers"
 import { trackKeyboard } from "../platform/keyboard"
-import { isIOS } from "../platform/env"
+import { isIOS, isRTL } from "../platform/env"
 import {
   isVertical,
   resolveSide,
@@ -609,8 +609,7 @@ function attachSheet(el: HTMLElement, input: SheetOptions) {
 
 function styleHost(host: HTMLElement, side: PhysicalSide, sheet: HTMLElement) {
   const vertical = isVertical(side)
-  const rtl =
-    sheet.ownerDocument.defaultView?.getComputedStyle(host).direction === "rtl"
+  const rtl = isRTL(host)
   const atEnd = side === "bottom" || (side === "right") !== rtl
   return setStyles(host, {
     position: "fixed",
